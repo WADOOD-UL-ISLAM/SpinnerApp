@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slot Machine App - Home</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+        .container {
+            text-align: center;
+            max-width: 800px;
+            padding: 40px;
+            background-color: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        .description {
+            font-size: 1.2rem;
+            margin-bottom: 40px;
+            line-height: 1.6;
+        }
+        .nav-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            display: inline-block;
+            padding: 15px 30px;
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+            text-decoration: none;
+            border-radius: 50px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            border: 2px solid white;
+            min-width: 200px;
+        }
+        .btn:hover {
+            background-color: rgba(255, 255, 255, 0.3);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+        .btn-admin {
+            background-color: #4CAF50;
+        }
+        .btn-spinner {
+            background-color: #2196F3;
+        }
+        .logo {
+            width: 100px;
+            margin-bottom: 20px;
+        }
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+            h1 {
+                font-size: 2rem;
+            }
+            .btn {
+                padding: 12px 20px;
+                min-width: 160px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Add your logo here if you have one -->
+        <!-- <img src="logo.png" alt="App Logo" class="logo"> -->
+        
+        <h1>Slot Machine App</h1>
+        
+        <p class="description">
+            Welcome to the Slot Machine application. Manage your campaigns and groups through the admin panel,
+            or go directly to the spinner interface for your selected group.
+        </p>
+        
+        <div class="nav-buttons">
+            <a href="campaigns.html" class="btn btn-admin">
+                <i class="fas fa-cog"></i> Admin Panel
+            </a>
+            <a href="data.html" class="btn btn-paper">
+                <i class="fas fa-paper"></i> Download Data
+            </a>
+        </div>
+    </div>
+
+    <!-- Font Awesome for icons (optional) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+</body>
+</html>

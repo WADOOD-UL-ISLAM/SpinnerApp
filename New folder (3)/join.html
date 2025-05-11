@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Join Campaign</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 20px;
+        }
+        .form-container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+        .form-container:hover {
+            transform: translateY(-5px);
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        .campaign-info {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            border-left: 4px solid #3498db;
+        }
+        .campaign-info h2 {
+            color: #3498db;
+            margin-top: 0;
+            font-size: 1.4rem;
+        }
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #2c3e50;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border 0.3s;
+        }
+        input:focus {
+            border-color: #3498db;
+            outline: none;
+        }
+        button {
+            background: linear-gradient(to right, #3498db, #2c3e50);
+            color: white;
+            border: none;
+            padding: 14px;
+            font-size: 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        button:disabled {
+            background: #95a5a6;
+            transform: none;
+            cursor: not-allowed;
+        }
+        #message {
+            margin-top: 20px;
+            padding: 12px;
+            border-radius: 6px;
+            display: none;
+            font-weight: 500;
+        }
+        .success {
+            background-color: #d1f2eb;
+            color: #16a085;
+            display: block;
+        }
+        .error {
+            background-color: #fadbd8;
+            color: #c0392b;
+            display: block;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #3498db;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+        .back-link:hover {
+            color: #2980b9;
+            text-decoration: underline;
+        }
+    </style>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+</head>
+<body>
+    <div class="form-container">
+        <h1>Join Campaign</h1>
+        
+        <div class="campaign-info" id="campaignInfo">
+            <div id="campaignLoading">Loading campaign information...</div>
+            <div id="campaignDetails" style="display: none;">
+                <h2 id="campaignName"></h2>
+                <p id="campaignDescription"></p>
+                <small>Campaign ID: <span id="campaignIdDisplay"></span></small>
+            </div>
+        </div>
+        
+        <form id="registrationForm">
+            <div class="form-group">
+                <label for="name">Full Name*</label>
+                <input type="text" id="name" required placeholder="Enter your full name">
+            </div>
+            
+            <div class="form-group">
+                <label for="email">Email*</label>
+                <input type="email" id="email" required placeholder="Enter your email">
+            </div>
+            
+            <div class="form-group">
+                <label for="phone">Phone Number</label>
+                <input type="tel" id="phone" placeholder="Enter your phone number">
+            </div>
+            
+            <button type="submit" id="submitBtn">Join Campaign</button>
+        </form>
+        
+        <div id="message"></div>
+    </div>
+
+    <script>
+        // Firebase configuration (must match your other pages)
+        const firebaseConfig = {
+            apiKey: "AIzaSyDFeNgXbph3n32yBtjt2JwUQO82UfZK4tI",
+            authDomain: "spinnerd1-cb95e.firebaseapp.com",
+            projectId: "spinnerd1-cb95e",
+            storageBucket: "spinnerd1-cb95e.appspot.com",
+            messagingSenderId: "24610685268",
+            appId: "1:24610685268:web:6557414e56eab2a78b08c1",
+            measurementId: "G-374VF9ZLFB"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Get campaign ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const campaignId = urlParams.get('campaignId');
+        
+        // DOM elements
+        const campaignLoading = document.getElementById('campaignLoading');
+        const campaignDetails = document.getElementById('campaignDetails');
+        const campaignName = document.getElementById('campaignName');
+        const campaignDescription = document.getElementById('campaignDescription');
+        const campaignIdDisplay = document.getElementById('campaignIdDisplay');
+        const registrationForm = document.getElementById('registrationForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const messageDiv = document.getElementById('message');
+
+        // Load campaign information
+        function loadCampaignInfo() {
+            if (!campaignId) {
+                showMessage("No campaign specified in the URL", "error");
+                campaignLoading.innerHTML = "Invalid campaign link";
+                registrationForm.style.display = "none";
+                return;
+            }
+
+            db.collection("campaigns").doc(campaignId).get()
+                .then((doc) => {
+                    if (doc.exists) {
+                        const campaign = doc.data();
+                        campaignName.textContent = campaign.name;
+                        campaignDescription.textContent = campaign.description || "Join this exciting campaign!";
+                        campaignIdDisplay.textContent = campaignId;
+                        
+                        campaignLoading.style.display = "none";
+                        campaignDetails.style.display = "block";
+                    } else {
+                        campaignLoading.innerHTML = "Campaign not found";
+                        showMessage("The specified campaign doesn't exist", "error");
+                        registrationForm.style.display = "none";
+                    }
+                })
+                .catch((error) => {
+                    campaignLoading.innerHTML = "Error loading campaign";
+                    showMessage("Failed to load campaign details", "error");
+                    console.error("Error loading campaign:", error);
+                });
+        }
+
+        // Handle form submission
+        registrationForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (!campaignId) {
+                showMessage("No campaign specified", "error");
+                return;
+            }
+
+            const name = document.getElementById('name').value.trim();
+            const email = document.getElementById('email').value.trim().toLowerCase();
+            const phone = document.getElementById('phone').value.trim();
+
+            if (!name) {
+                showMessage("Please enter your name", "error");
+                return;
+            }
+
+            if (!email) {
+                showMessage("Please enter your email", "error");
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = "Joining...";
+
+            try {
+                // Check if user already exists IN THIS CAMPAIGN
+                const snapshot = await db.collection("campaigns").doc(campaignId)
+                    .collection("users")
+                    .where("email", "==", email)
+                    .get();
+
+                if (!snapshot.empty) {
+                    showMessage("This email is already registered for this campaign", "error");
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = "Join Campaign";
+                    return;
+                }
+
+                // Add new user SPECIFIC TO THIS CAMPAIGN
+                await db.collection("campaigns").doc(campaignId).collection("users").add({
+                    name: name,
+                    email: email,
+                    phone: phone || null,
+                    enrolled: false,  // Important for user management
+                    status: "active",
+                    registeredAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
+                    campaignId: campaignId  // Explicitly store campaign ID
+                });
+
+                // Update campaign user count
+                await db.collection("campaigns").doc(campaignId).update({
+                    userCount: firebase.firestore.FieldValue.increment(1)
+                });
+
+                showMessage("Registration successful! You've joined the campaign.", "success");
+                registrationForm.reset();
+                
+                // Disable form after successful registration
+                Array.from(registrationForm.elements).forEach(element => {
+                    element.disabled = true;
+                });
+                submitBtn.textContent = "Registration Complete";
+                
+            } catch (error) {
+                console.error("Error adding user:", error);
+                showMessage("Registration failed. Please try again.", "error");
+                submitBtn.disabled = false;
+                submitBtn.textContent = "Join Campaign";
+            }
+        });
+
+        // Show message to user
+        function showMessage(text, type) {
+            messageDiv.textContent = text;
+            messageDiv.className = type;
+            messageDiv.style.display = "block";
+            
+            // Hide message after 5 seconds (except for success)
+            if (type !== "success") {
+                setTimeout(() => {
+                    messageDiv.style.display = "none";
+                }, 5000);
+            }
+        }
+
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', loadCampaignInfo);
+    </script>
+</body>
+</html>

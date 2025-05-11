@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Slot Machine Control</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .panel {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        input, select, button {
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button.secondary {
+            background-color: #2196F3;
+        }
+        button.secondary:hover {
+            background-color: #0b7dda;
+        }
+        button.danger {
+            background-color: #f44336;
+        }
+        button.danger:hover {
+            background-color: #d32f2f;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .slot-machine {
+            display: inline-block;
+            width: 200px;
+            height: 180px;
+            border: 3px solid #333;
+            border-radius: 8px;
+            margin: 10px;
+            position: relative;
+            overflow: hidden;
+            background: white;
+        }
+        .slot-window {
+            height: 100%;
+            position: relative;
+        }
+        .slot-highlight {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background-color: rgba(0, 255, 0, 0.3);
+            border-top: 2px solid #0a0;
+            border-bottom: 2px solid #0a0;
+            transform: translateY(-50%);
+            z-index: 1;
+        }
+        .names-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            transition: transform 0.1s linear;
+        }
+        .name {
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .group-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .group-box {
+            margin: 20px;
+            padding: 15px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #dff0d8;
+            color: #3c763d;
+        }
+        .error {
+            background-color: #f2dede;
+            color: #a94442;
+        }
+    </style>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Admin Slot Machine Control</h1>
+        
+        <!-- Campaign Creation -->
+        <div class="panel">
+            <h2>Create New Campaign</h2>
+            <input type="text" id="campaignName" placeholder="Campaign Name">
+            <button id="createCampaign">Create Campaign</button>
+            <div id="campaignStatus" class="status"></div>
+        </div>
+
+        <!-- Campaign Selection -->
+        <div class="panel">
+            <h2>Select Campaign</h2>
+            <select id="campaignSelect">
+                <option value="">-- Select Campaign --</option>
+            </select>
+            <div id="selectedCampaignInfo"></div>
+        </div>
+
+        <!-- User Management -->
+        <div class="panel" id="userManagementPanel" style="display: none;">
+            <h2>User Management</h2>
+            <input type="text" id="userName" placeholder="User Name">
+            <button id="addUser">Add User</button>
+            <button id="importUsers" class="secondary">Import Users (CSV)</button>
+            <div id="userStatus" class="status"></div>
+            <table id="usersTable">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- Group Management -->
+        <div class="panel" id="groupManagementPanel" style="display: none;">
+            <h2>Group Management</h2>
+            <input type="number" id="groupCount" placeholder="Number of Groups" min="1">
+            <button id="createGroups">Create Groups</button>
+            <div id="groupStatus" class="status"></div>
+            <div id="groupsContainer"></div>
+        </div>
+        <a href="group.html?campaign=${currentCampaignId}&group=${doc.id}">
+            <button class="secondary">View Group Details</button>
+        </a>
+    </div>
+
+    <script>
+        // Firebase configuration (REPLACE WITH YOUR CONFIG)
+        const firebaseConfig = {
+  apiKey: "AIzaSyDFeNgXbph3n32yBtjt2JwUQO82UfZK4tI",
+  authDomain: "spinnerd1-cb95e.firebaseapp.com",
+  projectId: "spinnerd1-cb95e",
+  storageBucket: "spinnerd1-cb95e.firebasestorage.app",
+  messagingSenderId: "24610685268",
+  appId: "1:24610685268:web:6557414e56eab2a78b08c1",
+  measurementId: "G-374VF9ZLFB"
+};
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // DOM elements
+        const campaignNameInput = document.getElementById('campaignName');
+        const createCampaignBtn = document.getElementById('createCampaign');
+        const campaignStatus = document.getElementById('campaignStatus');
+        const campaignSelect = document.getElementById('campaignSelect');
+        const selectedCampaignInfo = document.getElementById('selectedCampaignInfo');
+        const userManagementPanel = document.getElementById('userManagementPanel');
+        const groupManagementPanel = document.getElementById('groupManagementPanel');
+        const slotMachinesPanel = document.getElementById('slotMachinesPanel');
+        
+        // User management
+        const userNameInput = document.getElementById('userName');
+        const addUserBtn = document.getElementById('addUser');
+        const userStatus = document.getElementById('userStatus');
+        const usersTable = document.getElementById('usersTable').querySelector('tbody');
+        
+        // Group management
+        const groupCountInput = document.getElementById('groupCount');
+        const createGroupsBtn = document.getElementById('createGroups');
+        const groupStatus = document.getElementById('groupStatus');
+        const groupsContainer = document.getElementById('groupsContainer');
+       
+
+        // Global variables
+        let currentCampaignId = null;
+        let currentUsers = [];
+        let currentGroups = [];
+
+        // Initialize the app
+        function init() {
+            loadCampaigns();
+            
+            // Event listeners
+            createCampaignBtn.addEventListener('click', createCampaign);
+            campaignSelect.addEventListener('change', selectCampaign);
+            addUserBtn.addEventListener('click', addUser);
+            createGroupsBtn.addEventListener('click', createGroups);
+        }
+
+        // Load all campaigns
+        function loadCampaigns() {
+            db.collection("campaigns").get()
+                .then((querySnapshot) => {
+                    campaignSelect.innerHTML = '<option value="">-- Select Campaign --</option>';
+                    querySnapshot.forEach((doc) => {
+                        const option = document.createElement('option');
+                        option.value = doc.id;
+                        option.textContent = doc.data().name;
+                        campaignSelect.appendChild(option);
+                    });
+                })
+                .catch((error) => {
+                    showStatus(campaignStatus, "Error loading campaigns: " + error.message, "error");
+                });
+        }
+
+        // Create a new campaign
+        function createCampaign() {
+            const name = campaignNameInput.value.trim();
+            if (!name) {
+                showStatus(campaignStatus, "Please enter a campaign name", "error");
+                return;
+            }
+
+            createCampaignBtn.disabled = true;
+            createCampaignBtn.textContent = "Creating...";
+
+            db.collection("campaigns").add({
+                name: name,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            })
+            .then((docRef) => {
+                showStatus(campaignStatus, `Campaign "${name}" created successfully!`, "success");
+                campaignNameInput.value = "";
+                loadCampaigns();
+                campaignSelect.value = docRef.id;
+                selectCampaign();
+            })
+            .catch((error) => {
+                showStatus(campaignStatus, "Error creating campaign: " + error.message, "error");
+            })
+            .finally(() => {
+                createCampaignBtn.disabled = false;
+                createCampaignBtn.textContent = "Create Campaign";
+            });
+        }
+
+        // Select a campaign
+        function selectCampaign() {
+            currentCampaignId = campaignSelect.value;
+            if (!currentCampaignId) {
+                userManagementPanel.style.display = "none";
+                groupManagementPanel.style.display = "none";
+                slotMachinesPanel.style.display = "none";
+                selectedCampaignInfo.innerHTML = "";
+                return;
+            }
+
+            const selectedOption = campaignSelect.options[campaignSelect.selectedIndex];
+            selectedCampaignInfo.innerHTML = `<h3>${selectedOption.text}</h3>`;
+            userManagementPanel.style.display = "block";
+            groupManagementPanel.style.display = "none";
+            slotMachinesPanel.style.display = "none";
+
+            loadUsers();
+        }
+
+        // Load users for selected campaign
+        function loadUsers() {
+            db.collection("campaigns").doc(currentCampaignId).collection("users").get()
+                .then((querySnapshot) => {
+                    currentUsers = [];
+                    usersTable.innerHTML = "";
+                    querySnapshot.forEach((doc) => {
+                        currentUsers.push({
+                            id: doc.id,
+                            ...doc.data()
+                        });
+                        addUserToTable(doc.id, doc.data().name);
+                    });
+                    showStatus(userStatus, `Loaded ${currentUsers.length} users`, "success");
+                    
+                    // Show group management if users exist
+                    if (currentUsers.length > 0) {
+                        groupManagementPanel.style.display = "block";
+                        loadGroups();
+                    }
+                })
+                .catch((error) => {
+                    showStatus(userStatus, "Error loading users: " + error.message, "error");
+                });
+        }
+
+        // Add user to campaign
+        function addUser() {
+            const name = userNameInput.value.trim();
+            if (!name) {
+                showStatus(userStatus, "Please enter a user name", "error");
+                return;
+            }
+
+            addUserBtn.disabled = true;
+            addUserBtn.textContent = "Adding...";
+
+            db.collection("campaigns").doc(currentCampaignId).collection("users").add({
+                name: name,
+                addedAt: firebase.firestore.FieldValue.serverTimestamp()
+            })
+            .then((docRef) => {
+                showStatus(userStatus, `User "${name}" added successfully!`, "success");
+                userNameInput.value = "";
+                loadUsers();
+            })
+            .catch((error) => {
+                showStatus(userStatus, "Error adding user: " + error.message, "error");
+            })
+            .finally(() => {
+                addUserBtn.disabled = false;
+                addUserBtn.textContent = "Add User";
+            });
+        }
+
+        // Add user to table
+        function addUserToTable(id, name) {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${name}</td>
+                <td>
+                    <button class="danger" onclick="deleteUser('${id}')">Delete</button>
+                </td>
+            `;
+            usersTable.appendChild(row);
+        }
+
+        // Delete user
+        window.deleteUser = function(id) {
+            if (!confirm("Are you sure you want to delete this user?")) return;
+            
+            db.collection("campaigns").doc(currentCampaignId).collection("users").doc(id).delete()
+                .then(() => {
+                    showStatus(userStatus, "User deleted successfully", "success");
+                    loadUsers();
+                })
+                .catch((error) => {
+                    showStatus(userStatus, "Error deleting user: " + error.message, "error");
+                });
+        }
+
+        // Create groups
+        function createGroups() {
+            const groupCount = parseInt(groupCountInput.value);
+            if (!groupCount || groupCount < 1) {
+                showStatus(groupStatus, "Please enter a valid number of groups", "error");
+                return;
+            }
+
+            if (currentUsers.length < groupCount) {
+                showStatus(groupStatus, "Not enough users for the requested groups", "error");
+                return;
+            }
+
+            createGroupsBtn.disabled = true;
+            createGroupsBtn.textContent = "Creating...";
+
+            // Clear existing groups
+            db.collection("campaigns").doc(currentCampaignId).collection("groups").get()
+                .then((querySnapshot) => {
+                    const batch = db.batch();
+                    querySnapshot.forEach((doc) => {
+                        batch.delete(doc.ref);
+                    });
+                    return batch.commit();
+                })
+                .then(() => {
+                    // Shuffle users
+                    const shuffledUsers = [...currentUsers].sort(() => Math.random() - 0.5);
+                    
+                    // Calculate users per group
+                    const usersPerGroup = Math.floor(shuffledUsers.length / groupCount);
+                    let extraUsers = shuffledUsers.length % groupCount;
+                    
+                    // Create groups
+                    const batch = db.batch();
+                    let userIndex = 0;
+                    
+                    for (let i = 0; i < groupCount; i++) {
+                        const groupSize = usersPerGroup + (extraUsers-- > 0 ? 1 : 0);
+                        const groupUsers = shuffledUsers.slice(userIndex, userIndex + groupSize);
+                        userIndex += groupSize;
+                        
+                        const groupRef = db.collection("campaigns").doc(currentCampaignId).collection("groups").doc();
+                        batch.set(groupRef, {
+                            name: `Group ${i+1}`,
+                            userCount: groupUsers.length,
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                        
+                        // Add users to group
+                        const usersBatch = db.batch();
+                        groupUsers.forEach(user => {
+                            const userGroupRef = groupRef.collection("members").doc(user.id);
+                            usersBatch.set(userGroupRef, {
+                                name: user.name,
+                                userId: user.id
+                            });
+                        });
+                        usersBatch.commit();
+                    }
+                    
+                    return batch.commit();
+                })
+                .then(() => {
+                    showStatus(groupStatus, `Created ${groupCount} groups successfully!`, "success");
+                    loadGroups();
+                })
+                .catch((error) => {
+                    showStatus(groupStatus, "Error creating groups: " + error.message, "error");
+                })
+                .finally(() => {
+                    createGroupsBtn.disabled = false;
+                    createGroupsBtn.textContent = "Create Groups";
+                });
+        }
+
+        // Load groups
+        function loadGroups() {
+            db.collection("campaigns").doc(currentCampaignId).collection("groups").get()
+                .then((querySnapshot) => {
+                    currentGroups = [];
+                    groupsContainer.innerHTML = "";
+                    
+                    
+                    
+                    querySnapshot.forEach((doc) => {
+                        currentGroups.push({
+                            id: doc.id,
+                            ...doc.data()
+                        });
+                        
+                        // Display group info
+                        const groupDiv = document.createElement('div');
+                        groupDiv.className = "group-box";
+                        groupDiv.innerHTML = `
+                            <h3>${doc.data().name}</h3>
+                            <p>Users: ${doc.data().userCount}</p>
+                            <button class="secondary" onclick="viewGroup('${doc.id}')">View Users</button>
+                        `;
+                        groupsContainer.appendChild(groupDiv);
+                    
+                    });
+                })
+                .catch((error) => {
+                    showStatus(groupStatus, "Error loading groups: " + error.message, "error");
+                });
+        }
+
+        // View group members
+        window.viewGroup = function(groupId) {
+            db.collection("campaigns").doc(currentCampaignId).collection("groups").doc(groupId)
+                .collection("members").get()
+                .then((querySnapshot) => {
+                    let members = [];
+                    querySnapshot.forEach(doc => {
+                        members.push(doc.data().name);
+                    });
+                    alert(`Group Members:\n\n${members.join("\n")}`);
+                });
+        };
+       
+
+        // Show status message
+        function showStatus(element, message, type) {
+            element.textContent = message;
+            element.className = `status ${type}`;
+        }
+
+        // Initialize the app
+        init();
+    </script>
+</body>
+</html>

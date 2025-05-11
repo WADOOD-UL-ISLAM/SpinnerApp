@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slot Machine Spinner</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+        .container {
+            max-width: 800px;
+            width: 100%;
+            text-align: center;
+        }
+        h1 {
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        .panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+        .slot-machine {
+            width: 300px;
+            height: 300px;
+            margin: 0 auto 30px;
+            position: relative;
+            overflow: hidden;
+            border: 5px solid #ffd700;
+            border-radius: 15px;
+            background: #000;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
+        }
+        .slot-window {
+            height: 100%;
+            position: relative;
+        }
+        .slot-highlight {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 80px;
+            background: linear-gradient(
+                rgba(255, 255, 255, 0.1),
+                rgba(255, 255, 255, 0.3),
+                rgba(255, 255, 255, 0.1)
+            );
+            border-top: 2px solid rgba(255, 255, 255, 0.5);
+            border-bottom: 2px solid rgba(255, 255, 255, 0.5);
+            transform: translateY(-50%);
+            z-index: 1;
+        }
+        .names-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            transition: transform 0.1s ease-out;
+        }
+        .name {
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 0 0 10px rgba(255,255,255,0.7);
+        }
+        #spinButton {
+            padding: 15px 40px;
+            background: linear-gradient(to right, #ff416c, #ff4b2b);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+        #spinButton:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+        }
+        #spinButton:disabled {
+            background: #cccccc;
+            transform: none;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 18px;
+            margin-top: 20px;
+            display: inline-block;
+            min-width: 200px;
+        }
+        .success {
+            background-color: rgba(46, 204, 113, 0.8);
+            animation: pulse 1.5s infinite;
+        }
+        .error {
+            background-color: rgba(231, 76, 60, 0.8);
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+    </style>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+</head>
+<body>
+    <button class="back-btn" onclick="window.location.href='campaigns.html'">← Back to Groups</button>
+    
+    <div class="container">
+        <h1 id="groupTitle">Slot Machine</h1>
+        
+        <div class="panel">
+            <div class="slot-machine">
+                <div class="slot-window">
+                    <div class="slot-highlight"></div>
+                    <div class="names-container" id="namesContainer"></div>
+                </div>
+            </div>
+            <button id="spinButton">SPIN</button>
+            <div id="winnerDisplay" class="status"></div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase configuration (use your actual config)
+        const firebaseConfig = {
+            apiKey: "AIzaSyDFeNgXbph3n32yBtjt2JwUQO82UfZK4tI",
+            authDomain: "spinnerd1-cb95e.firebaseapp.com",
+            projectId: "spinnerd1-cb95e",
+            storageBucket: "spinnerd1-cb95e.appspot.com",
+            messagingSenderId: "24610685268",
+            appId: "1:24610685268:web:6557414e56eab2a78b08c1",
+            measurementId: "G-374VF9ZLFB"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // DOM elements
+        const groupTitle = document.getElementById('groupTitle');
+        const namesContainer = document.getElementById('namesContainer');
+        const spinButton = document.getElementById('spinButton');
+        const winnerDisplay = document.getElementById('winnerDisplay');
+
+        // Get URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const campaignId = urlParams.get('campaign');
+        const groupId = urlParams.get('group');
+
+        // Initialize the app
+        function init() {
+            if (!campaignId || !groupId) {
+                showError("Missing campaign or group ID in URL");
+                setTimeout(() => window.location.href = "groups.html", 2000);
+                return;
+            }
+
+            loadGroupInfo();
+            loadGroupNames();
+            
+            spinButton.addEventListener('click', spinSlotMachine);
+        }
+
+        // Load group info
+        function loadGroupInfo() {
+            db.collection("campaigns").doc(campaignId).collection("groups").doc(groupId).get()
+                .then((doc) => {
+                    if (doc.exists) {
+                        groupTitle.textContent = `${doc.data().name} - Slot Machine`;
+                    } else {
+                        showError("Group not found");
+                    }
+                })
+                .catch((error) => {
+                    showError("Error loading group: " + error.message);
+                });
+        }
+
+        // Load names for the group's slot machine
+        function loadGroupNames() {
+            db.collection("campaigns").doc(campaignId).collection("groups").doc(groupId)
+                .collection("members").get()
+                .then((querySnapshot) => {
+                    if (querySnapshot.empty) {
+                        showError("No members in this group");
+                        spinButton.disabled = true;
+                        return;
+                    }
+
+                    const names = [];
+                    querySnapshot.forEach(doc => {
+                        names.push(doc.data().name);
+                    });
+                    
+                    populateNamesContainer(names);
+                    centerOnName(3); // Center first name initially
+                })
+                .catch((error) => {
+                    showError("Error loading members: " + error.message);
+                });
+        }
+
+        // Populate the names container with animation effects
+        function populateNamesContainer(names) {
+            namesContainer.innerHTML = '';
+            
+            // Add loop effect names (start buffer)
+            for (let i = names.length - 3; i < names.length; i++) {
+                addNameElement(names[(i + names.length) % names.length]);
+            }
+            
+            // Add all actual names
+            names.forEach(name => {
+                addNameElement(name);
+            });
+            
+            // Add loop effect names (end buffer)
+            for (let i = 0; i < 3; i++) {
+                addNameElement(names[i % names.length]);
+            }
+        }
+
+        // Helper to create name elements
+        function addNameElement(name) {
+            const nameElement = document.createElement('div');
+            nameElement.className = 'name';
+            nameElement.textContent = name;
+            namesContainer.appendChild(nameElement);
+        }
+
+        // Center slot machine on specific name
+        function centerOnName(index) {
+            const nameHeight = 80;
+            const containerHeight = 300;
+            const centerPosition = containerHeight / 2 - nameHeight / 2;
+            const targetPosition = index * nameHeight;
+            const offset = centerPosition - targetPosition;
+            
+            namesContainer.style.transform = `translateY(${offset}px)`;
+        }
+
+        // Spin the slot machine
+        function spinSlotMachine() {
+            winnerDisplay.textContent = "";
+            winnerDisplay.className = "status";
+            spinButton.disabled = true;
+            
+            db.collection("campaigns").doc(campaignId).collection("groups").doc(groupId)
+                .collection("members").get()
+                .then((querySnapshot) => {
+                    const names = [];
+                    querySnapshot.forEach(doc => {
+                        names.push(doc.data().name);
+                    });
+                    
+                    if (names.length === 0) {
+                        showError("No users in this group");
+                        spinButton.disabled = false;
+                        return;
+                    }
+                    
+                    const spinDuration = 4000; // 4 seconds total
+                    const fastSpinDuration = 3000; // 3 seconds fast spinning
+                    const slowSpinDuration = spinDuration - fastSpinDuration;
+                    let startTime = null;
+                    
+                    // Random winner index (accounting for loop elements)
+                    const winnerIndex = Math.floor(Math.random() * names.length) + 3;
+                    
+                    function animate(currentTime) {
+                        if (!startTime) startTime = currentTime;
+                        const elapsedTime = currentTime - startTime;
+                        const progress = Math.min(elapsedTime / spinDuration, 1);
+                        
+                        if (progress < 1) {
+                            // Calculate speed factor (fast then slow)
+                            let speedFactor;
+                            if (elapsedTime < fastSpinDuration) {
+                                // Fast spinning phase
+                                const fastProgress = elapsedTime / fastSpinDuration;
+                                speedFactor = 1 - Math.pow(fastProgress, 3);
+                            } else {
+                                // Slow down phase
+                                const slowProgress = (elapsedTime - fastSpinDuration) / slowSpinDuration;
+                                speedFactor = (1 - slowProgress) * 0.3;
+                            }
+                            
+                            // Move container
+                            const nameHeight = 80;
+                            const currentPosition = parseFloat(namesContainer.style.transform.replace('translateY(', '').replace('px)', '')) || 0;
+                            const newPosition = currentPosition - (15 * speedFactor);
+                            namesContainer.style.transform = `translateY(${newPosition}px)`;
+                            
+                            // Loop if needed
+                            if (newPosition < -((names.length + 3) * nameHeight)) {
+                                namesContainer.style.transform = `translateY(0px)`;
+                            }
+                            
+                            requestAnimationFrame(animate);
+                        } else {
+                            // Animation complete
+                            centerOnName(winnerIndex);
+                            const winner = names[winnerIndex - 3];
+                            showWinner(winner);
+                            spinButton.disabled = false;
+                            
+                            // Save winner to Firestore
+                            saveWinner(winner);
+                        }
+                    }
+                    
+                    requestAnimationFrame(animate);
+                })
+                .catch((error) => {
+                    showError("Error spinning: " + error.message);
+                    spinButton.disabled = false;
+                });
+        }
+
+        // Save winner to Firestore
+        function saveWinner(winnerName) {
+            db.collection("campaigns").doc(campaignId).collection("groups").doc(groupId)
+                .collection("winners").add({
+                    name: winnerName,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                })
+                .catch((error) => {
+                    console.error("Error saving winner: ", error);
+                });
+        }
+
+        // Show winner message
+        function showWinner(winner) {
+            winnerDisplay.textContent = `Winner: ${winner}!`;
+            winnerDisplay.className = "status success";
+        }
+
+        // Show error message
+        function showError(message) {
+            winnerDisplay.textContent = message;
+            winnerDisplay.className = "status error";
+        }
+
+        // Initialize the app when DOM is loaded
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

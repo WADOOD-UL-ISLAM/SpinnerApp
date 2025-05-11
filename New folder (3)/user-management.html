@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Management</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    .panel {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    h1, h2, h3 {
+      color: #333;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    th, td {
+      padding: 10px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+    button {
+      padding: 8px 12px;
+      background-color: #f44336;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #d32f2f;
+    }
+    .back-btn {
+      background-color: #2196F3;
+      color: white;
+      padding: 10px 15px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+      margin-bottom: 20px;
+    }
+    .section {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+    .half {
+      flex: 1 1 45%;
+    }
+    .status {
+      margin-bottom: 10px;
+      font-weight: bold;
+      color: #555;
+    }
+  </style>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+</head>
+<body>
+  <div class="container">
+    <a href="campaign.html?id=" id="backButton" class="back-btn">← Back to Campaign</a>
+
+    <h1>User Management</h1>
+
+    <div class="section">
+      <!-- Not Enrolled Users -->
+      <div class="half panel">
+        <h2>Not Enrolled Users (<span id="notEnrolledCount">0</span>)</h2>
+        <table id="notEnrolledTable">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <!-- Enrolled Users in Groups -->
+      <div class="half panel">
+        <h2>Groups and Users</h2>
+        <div id="groupsContainer"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Firebase Config
+    const firebaseConfig = {
+      apiKey: "AIzaSyDFeNgXbph3n32yBtjt2JwUQO82UfZK4tI",
+      authDomain: "spinnerd1-cb95e.firebaseapp.com",
+      projectId: "spinnerd1-cb95e",
+      storageBucket: "spinnerd1-cb95e.appspot.com",
+      messagingSenderId: "24610685268",
+      appId: "1:24610685268:web:6557414e56eab2a78b08c1",
+      measurementId: "G-374VF9ZLFB"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // Get Campaign ID
+    const urlParams = new URLSearchParams(window.location.search);
+    const campaignId = urlParams.get('id');
+
+    if (!campaignId) {
+      alert("No campaign specified!");
+      window.location.href = "campaigns.html";
+    } else {
+      document.getElementById('backButton').href = "campaign.html?id=" + campaignId;
+    }
+
+    const notEnrolledTable = document.getElementById('notEnrolledTable').querySelector('tbody');
+    const notEnrolledCount = document.getElementById('notEnrolledCount');
+    const groupsContainer = document.getElementById('groupsContainer');
+
+    // Load Not Enrolled Users
+    function loadNotEnrolledUsers() {
+      db.collection("campaigns").doc(campaignId).collection("users")
+        .where("enrolled", "==", false)
+        .get()
+        .then(snapshot => {
+          notEnrolledTable.innerHTML = "";
+          notEnrolledCount.textContent = snapshot.size;
+
+          snapshot.forEach(doc => {
+            const user = doc.data();
+            const row = document.createElement('tr');
+            row.innerHTML = `
+              <td>${user.name}</td>
+              <td>${user.email || ''}</td>
+              <td><button onclick="deleteUser('${doc.id}')">Remove</button></td>
+            `;
+            notEnrolledTable.appendChild(row);
+          });
+        });
+    }
+
+    // Load Groups and Users
+    function loadGroupsAndUsers() {
+      db.collection("campaigns").doc(campaignId).collection("groups")
+        .get()
+        .then(snapshot => {
+          groupsContainer.innerHTML = "";
+          snapshot.forEach(groupDoc => {
+            const groupData = groupDoc.data();
+            const groupDiv = document.createElement('div');
+            groupDiv.className = "panel";
+            groupDiv.innerHTML = `<h3>${groupData.name}</h3><table><thead><tr><th>Name</th><th>Email</th></tr></thead><tbody id="group-${groupDoc.id}"></tbody></table>`;
+            groupsContainer.appendChild(groupDiv);
+
+            // Load Members
+            db.collection("campaigns").doc(campaignId).collection("groups")
+              .doc(groupDoc.id).collection("members")
+              .get()
+              .then(membersSnapshot => {
+                const groupTable = document.getElementById(`group-${groupDoc.id}`);
+                membersSnapshot.forEach(memberDoc => {
+                  const member = memberDoc.data();
+                  const row = document.createElement('tr');
+                  row.innerHTML = `<td>${member.name}</td><td>${member.email || ''}</td>`;
+                  groupTable.appendChild(row);
+                });
+              });
+          });
+        });
+    }
+
+    // Delete Not Enrolled User
+    function deleteUser(userId) {
+      if (!confirm("Are you sure you want to remove this user?")) return;
+
+      db.collection("campaigns").doc(campaignId).collection("users").doc(userId)
+        .delete()
+        .then(() => {
+          alert("User removed successfully!");
+          loadNotEnrolledUsers();
+        })
+        .catch(error => {
+          console.error("Error deleting user: ", error);
+          alert("Failed to remove user.");
+        });
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      loadNotEnrolledUsers();
+      loadGroupsAndUsers();
+    });
+  </script>
+
+</body>
+</html>

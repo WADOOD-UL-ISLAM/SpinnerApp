@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campaign Users Export</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f4f4f4;
+            font-weight: bold;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            display: block;
+            margin: 20px auto;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .active {
+            background-color: #dff0d8;
+            color: #3c763d;
+        }
+        .inactive {
+            background-color: #f2dede;
+            color: #a94442;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Campaign Users Export</h1>
+        
+        <!-- Campaign Selection -->
+        <div style="text-align: center; margin-bottom: 20px;">
+            <label for="campaignSelect">Select Campaign:</label>
+            <select id="campaignSelect" style="padding: 8px; margin-left: 10px;">
+                <option value="">-- Loading Campaigns --</option>
+            </select>
+        </div>
+
+        <!-- User Data Table -->
+        <table id="userTable">
+            <thead>
+                <tr>
+                    <th>User ID</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Status</th>
+                    <th>Group</th>
+                    <th>Registration Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Data will be loaded here -->
+            </tbody>
+        </table>
+
+        <!-- Download Button -->
+        <button id="downloadBtn" disabled>Download as Excel</button>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    
+    <!-- SheetJS for Excel export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+
+    <script>
+        // Firebase configuration (use your actual config)
+        const firebaseConfig = {
+            apiKey: "AIzaSyDFeNgXbph3n32yBtjt2JwUQO82UfZK4tI",
+            authDomain: "spinnerd1-cb95e.firebaseapp.com",
+            projectId: "spinnerd1-cb95e",
+            storageBucket: "spinnerd1-cb95e.appspot.com",
+            messagingSenderId: "24610685268",
+            appId: "1:24610685268:web:6557414e56eab2a78b08c1",
+            measurementId: "G-374VF9ZLFB"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // DOM elements
+        const campaignSelect = document.getElementById('campaignSelect');
+        const userTable = document.getElementById('userTable').getElementsByTagName('tbody')[0];
+        const downloadBtn = document.getElementById('downloadBtn');
+        
+        // Global variables
+        let allUsers = [];
+        let campaigns = [];
+
+        // Load all campaigns
+        function loadCampaigns() {
+            db.collection("campaigns").get().then((querySnapshot) => {
+                campaignSelect.innerHTML = '<option value="">-- Select Campaign --</option>';
+                
+                querySnapshot.forEach((doc) => {
+                    campaigns.push({
+                        id: doc.id,
+                        name: doc.data().name
+                    });
+                    
+                    const option = document.createElement('option');
+                    option.value = doc.id;
+                    option.textContent = doc.data().name;
+                    campaignSelect.appendChild(option);
+                });
+            }).catch((error) => {
+                console.error("Error loading campaigns:", error);
+            });
+        }
+
+        // Load users for selected campaign
+        campaignSelect.addEventListener('change', (e) => {
+            const campaignId = e.target.value;
+            if (!campaignId) return;
+            
+            downloadBtn.disabled = true;
+            userTable.innerHTML = '<tr><td colspan="6" style="text-align: center;">Loading users...</td></tr>';
+            
+            db.collection("campaigns").doc(campaignId).collection("users")
+                .get()
+                .then((querySnapshot) => {
+                    allUsers = [];
+                    userTable.innerHTML = '';
+                    
+                    if (querySnapshot.empty) {
+                        userTable.innerHTML = '<tr><td colspan="6" style="text-align: center;">No users found</td></tr>';
+                        return;
+                    }
+                    
+                    querySnapshot.forEach((doc) => {
+                        const userData = doc.data();
+                        allUsers.push({
+                            id: doc.id,
+                            name: userData.name || 'N/A',
+                            email: userData.email || 'N/A',
+                            status: userData.enrolled ? 'Enrolled' : 'Pending',
+                            group: userData.groupId || 'Not assigned',
+                            registeredAt: userData.registeredAt?.toDate().toLocaleString() || 'N/A'
+                        });
+                        
+                        // Add to table
+                        const row = userTable.insertRow();
+                        row.insertCell(0).textContent = doc.id;
+                        row.insertCell(1).textContent = userData.name || 'N/A';
+                        row.insertCell(2).textContent = userData.email || 'N/A';
+                        
+                        const statusCell = row.insertCell(3);
+                        statusCell.innerHTML = `<span class="status ${userData.enrolled ? 'active' : 'inactive'}">
+                            ${userData.enrolled ? 'Enrolled' : 'Pending'}
+                        </span>`;
+                        
+                        row.insertCell(4).textContent = userData.groupId || 'Not assigned';
+                        row.insertCell(5).textContent = userData.registeredAt?.toDate().toLocaleString() || 'N/A';
+                    });
+                    
+                    downloadBtn.disabled = false;
+                })
+                .catch((error) => {
+                    console.error("Error loading users:", error);
+                    userTable.innerHTML = '<tr><td colspan="6" style="text-align: center; color: red;">Error loading users</td></tr>';
+                });
+        });
+
+        // Download as Excel
+        downloadBtn.addEventListener('click', () => {
+            if (allUsers.length === 0) {
+                alert('No users to export');
+                return;
+            }
+            
+            // Format data for Excel
+            const excelData = allUsers.map(user => ({
+                'User ID': user.id,
+                'Name': user.name,
+                'Email': user.email,
+                'Status': user.status,
+                'Group': user.group,
+                'Registration Date': user.registeredAt
+            }));
+            
+            // Create worksheet
+            const ws = XLSX.utils.json_to_sheet(excelData);
+            
+            // Create workbook
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Users");
+            
+            // Generate Excel file
+            const campaignName = campaignSelect.options[campaignSelect.selectedIndex].text;
+            XLSX.writeFile(wb, `${campaignName}_Users_${new Date().toISOString().split('T')[0]}.xlsx`);
+        });
+
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', loadCampaigns);
+    </script>
+</body>
+</html>

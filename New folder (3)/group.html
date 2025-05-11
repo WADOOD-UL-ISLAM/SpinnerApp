@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Group Management</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .panel {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        button {
+            padding: 10px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button.primary {
+            background-color: #4CAF50;
+            color: white;
+        }
+        button.primary:hover {
+            background-color: #45a049;
+        }
+        button.secondary {
+            background-color: #2196F3;
+            color: white;
+        }
+        button.secondary:hover {
+            background-color: #0b7dda;
+        }
+        button.danger {
+            background-color: #f44336;
+            color: white;
+        }
+        button.danger:hover {
+            background-color: #d32f2f;
+        }
+        .group-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-start;
+        }
+        .group-box {
+            margin: 10px;
+            padding: 15px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            width: 250px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #dff0d8;
+            color: #3c763d;
+        }
+        .error {
+            background-color: #f2dede;
+            color: #a94442;
+        }
+        a {
+            text-decoration: none;
+        }
+    </style>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Group Management</h1>
+        
+        <!-- Campaign Selection -->
+        <div class="panel">
+            <h2>Select Campaign</h2>
+            <select id="campaignSelect">
+                <option value="">-- Select Campaign --</option>
+            </select>
+            <div id="selectedCampaignInfo"></div>
+        </div>
+
+        <!-- Group Display -->
+        <div class="panel" id="groupManagementPanel" style="display: none;">
+            <h2>Groups</h2>
+            <div id="groupsContainer" class="group-container"></div>
+            <div id="groupStatus" class="status"></div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase configuration (use your actual config)
+        const firebaseConfig = {
+            apiKey: "AIzaSyDFeNgXbph3n32yBtjt2JwUQO82UfZK4tI",
+            authDomain: "spinnerd1-cb95e.firebaseapp.com",
+            projectId: "spinnerd1-cb95e",
+            storageBucket: "spinnerd1-cb95e.appspot.com",
+            messagingSenderId: "24610685268",
+            appId: "1:24610685268:web:6557414e56eab2a78b08c1",
+            measurementId: "G-374VF9ZLFB"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // DOM elements
+        const campaignSelect = document.getElementById('campaignSelect');
+        const selectedCampaignInfo = document.getElementById('selectedCampaignInfo');
+        const groupManagementPanel = document.getElementById('groupManagementPanel');
+        const groupsContainer = document.getElementById('groupsContainer');
+        const groupStatus = document.getElementById('groupStatus');
+
+        // Global variables
+        let currentCampaignId = null;
+
+        // Initialize the app
+        function init() {
+            loadCampaigns();
+            campaignSelect.addEventListener('change', selectCampaign);
+        }
+
+        // Load all campaigns
+        function loadCampaigns() {
+            db.collection("campaigns").get()
+                .then((querySnapshot) => {
+                    campaignSelect.innerHTML = '<option value="">-- Select Campaign --</option>';
+                    querySnapshot.forEach((doc) => {
+                        const option = document.createElement('option');
+                        option.value = doc.id;
+                        option.textContent = doc.data().name;
+                        campaignSelect.appendChild(option);
+                    });
+                })
+                .catch((error) => {
+                    console.error("Error loading campaigns: " + error.message);
+                });
+        }
+
+        // Select a campaign
+        function selectCampaign() {
+            currentCampaignId = campaignSelect.value;
+            if (!currentCampaignId) {
+                groupManagementPanel.style.display = "none";
+                selectedCampaignInfo.innerHTML = "";
+                return;
+            }
+
+            const selectedOption = campaignSelect.options[campaignSelect.selectedIndex];
+            selectedCampaignInfo.innerHTML = `<h3>${selectedOption.text}</h3>`;
+            groupManagementPanel.style.display = "block";
+
+            loadGroups();
+        }
+
+        // Load groups for selected campaign
+        function loadGroups() {
+            db.collection("campaigns").doc(currentCampaignId).collection("groups").get()
+                .then((querySnapshot) => {
+                    groupsContainer.innerHTML = "";
+                    
+                    if (querySnapshot.empty) {
+                        showStatus(groupStatus, "No groups found for this campaign", "error");
+                        return;
+                    }
+
+                    querySnapshot.forEach((doc) => {
+                        const groupData = doc.data();
+                        const groupDiv = document.createElement('div');
+                        groupDiv.className = "group-box";
+                        groupDiv.innerHTML = `
+                            <h3>${groupData.name}</h3>
+                            <p>Members: ${groupData.userCount}</p>
+                            <div class="group-actions">
+                                <button class="secondary" onclick="viewGroupMembers('${doc.id}')">View Members</button>
+                                <a href="spinner.html?campaign=${currentCampaignId}&group=${doc.id}">
+                                    <button class="primary">Open Spinner</button>
+                                </a>
+                            </div>
+                        `;
+                        groupsContainer.appendChild(groupDiv);
+                    });
+                    
+                    showStatus(groupStatus, `Loaded ${querySnapshot.size} groups`, "success");
+                })
+                .catch((error) => {
+                    showStatus(groupStatus, "Error loading groups: " + error.message, "error");
+                });
+        }
+
+        // View group members
+        window.viewGroupMembers = function(groupId) {
+            db.collection("campaigns").doc(currentCampaignId).collection("groups").doc(groupId)
+                .collection("members").get()
+                .then((querySnapshot) => {
+                    let members = [];
+                    querySnapshot.forEach(doc => {
+                        members.push(doc.data().name);
+                    });
+                    
+                    if (members.length === 0) {
+                        alert("This group has no members");
+                        return;
+                    }
+                    
+                    alert(`Group Members:\n\n${members.join("\n")}`);
+                })
+                .catch((error) => {
+                    alert("Error loading group members: " + error.message);
+                });
+        };
+
+        // Show status message
+        function showStatus(element, message, type) {
+            element.textContent = message;
+            element.className = `status ${type}`;
+            setTimeout(() => {
+                element.textContent = "";
+                element.className = "status";
+            }, 5000);
+        }
+
+        // Initialize the app
+        init();
+    </script>
+</body>
+</html>
